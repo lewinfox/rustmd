@@ -1,8 +1,9 @@
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
+use std::io::Write;
 
-fn parse_markdown_file(filename: &str) {
+fn parse_markdown_file(filename: &str) -> Vec<String> {
   print_banner();
 
   // Use a Path object as the filename
@@ -48,15 +49,17 @@ fn parse_markdown_file(filename: &str) {
         }
 
         if _codetag {
-          _codetag = false;
-          output_line.push_str("</code>\n>");
+          output_line.push_str(&input_line);
+          output_line.push_str("\n");
+        } else {
+          // Create a new header tag
+          _htag = true;
+          output_line.push_str("\n\n<h1>");
+          // Push the rest of the line (minus first 2 chars) to output
+          output_line.push_str(&input_line[2..]);
         }
 
-        // Create a new header tag
-        _htag = true;
-        output_line.push_str("\n\n<h1>");
-        // Push the rest of the line (minus first 2 chars) to output
-        output_line.push_str(&input_line[2..]);
+
       },
       Some('`') => {
         // We are in a code block
@@ -75,11 +78,11 @@ fn parse_markdown_file(filename: &str) {
         if _codetag {
           // Close code tag and move on
           _codetag = false;
-          output_line.push_str("</code>\n");
+          output_line.push_str("</pre></code>\n");
         } else {
           // Create a new code tag
           _codetag = true;
-          output_line.push_str("<code>");
+          output_line.push_str("<code><pre>");
         }
       },
       _ => {
@@ -90,6 +93,11 @@ fn parse_markdown_file(filename: &str) {
         }
 
         output_line.push_str(&input_line);
+
+        // For code, line breaks are important
+        if _codetag {
+          output_line.push_str("\n")
+        }
 
       }
     }
@@ -107,10 +115,11 @@ fn parse_markdown_file(filename: &str) {
 
     // Check that we're not going to push an empty paragraph tag
     if output_line != "<p></p>\n" {
-      println!("{}", output_line);
       output.push(output_line);
     }
   }
+
+  output
 
 }
 
@@ -130,8 +139,22 @@ fn main() {
   let args: Vec<String> = std::env::args().collect();
 
   // Check how many args were passed. If anything other than 2, displa
-  match args.len() {
-    2 => parse_markdown_file(&args[1]),
-    _ => usage()
+  if args.len() != 2 {
+    usage();
+  }
+
+  let parsed_html = parse_markdown_file(&args[1]);
+
+  // Assuming the input is <something>.md, we want the output to be
+  // <something>.html
+  let mut outfile_name: String = String::from(&args[1][..&args[1].len()-3]);
+  outfile_name.push_str(".html");
+
+  let mut outfile = File::create(outfile_name)
+    .expect("[ ERROR ] Could not create output file");
+
+  for line in &parsed_html {
+    outfile.write_all(line.as_bytes())
+      .expect("[ ERROR ] Count not write line to file")
   }
 }
