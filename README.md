@@ -7,3 +7,11 @@ Extended to accept fenced code blocks
 ```
 Like this
 ```
+
+# Usage
+
+```
+rustmd file.md
+```
+
+Produces `file.html` output. Accepts `H1`s, single-line paragraphs and fenced code blocks.
